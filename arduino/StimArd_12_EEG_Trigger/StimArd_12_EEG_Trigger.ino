@@ -1,5 +1,5 @@
 #define NUM_PARAMETERS 6
-#define BUFFER_SIZE 25
+#define BUFFER_SIZE 24  // 6 single-precision floats x 4 bytes each
 
 int triggerPins[3] = { 8, 9, 10 }; // for EEG trigger
 int stimulatorPins[2] = { 12, 13 }; // {left, right}
@@ -64,9 +64,9 @@ void loop() {
             digitalWrite( triggerPins[2], HIGH );
             break;
         case 7:
+            digitalWrite( triggerPins[0], HIGH );
             digitalWrite( triggerPins[1], HIGH );
             digitalWrite( triggerPins[2], HIGH );
-            digitalWrite( triggerPins[3], HIGH );
             break;
         default:
             break;
