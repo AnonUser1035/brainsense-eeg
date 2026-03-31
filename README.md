@@ -94,21 +94,44 @@ The Arduino trigger system serves as the synchronization mechanism between the E
 
 ### Arduino Pin Assignments
 
-| Arduino Pin | Breadboard LED | Connector | Function |
-|-------------|---------------|-----------|----------|
-| 8 | Red | Top row | EEG trigger bit 0 |
-| 9 | Yellow | Top row | EEG trigger bit 1 |
-| 10 | Green | Top row | EEG trigger bit 2 |
-| 11 | Blue | Top row | <!-- TODO: determine function after pin test --> |
-| 12 | — | — | Left stimulator channel (not currently connected) |
-| 13 | — | — | Right stimulator channel (not currently connected) |
-| GND | — | Bottom row | Common ground with amplifier |
+| Arduino Pin | Breadboard LED | Function |
+|-------------|---------------|----------|
+| 8 | Blue | EEG trigger bit 0 |
+| 9 | Green | EEG trigger bit 1 |
+| 10 | Yellow | EEG trigger bit 2 |
+| 11 | Red | <!-- TODO: confirm function — not driven by firmware but blinks when code runs --> |
+| 12 | — | Left stimulator channel (not currently connected) |
+| 13 | — | Right stimulator channel (not currently connected) |
 
-<!-- TODO: Identify remaining 4 top-row connector pins -->
-<!-- TODO: Confirm pin 11 function — blue LED blinks when code runs but firmware doesn't drive pin 11 -->
+<!-- TODO: Confirm pin 11 function — red LED blinks when code runs but firmware doesn't drive pin 11 -->
 <!-- TODO: Confirm whether pins 12/13 are needed for current experiment -->
 
-> **Important:** The connector between the Arduino breadboard and the amplifier has **8 data pins on the top row** and **1 ground pin on the bottom row**. After resoldering or reconnecting, use the pin test (`test/pin_test.m`) to verify correct wiring.
+### Breadboard to DB-25 Connector Wiring
+
+The breadboard connects to the EEG amplifier via a DB-25 connector cable. The 8-pin connector on the breadboard side has 8 data pins on the top row and 1 ground pin on the bottom row.
+
+**Signal pins (Arduino → LED → DB-25):**
+
+| Wire # | Source | LED | DB-25 Pin |
+|--------|--------|-----|-----------|
+| 1 | Arduino pin 8 | Blue | 10 |
+| 2 | Arduino pin 9 | Green | 11 |
+| 3 | Arduino pin 10 | Yellow | 13 |
+| 4 | Arduino pin 11 | Red | 12 |
+
+**Ground pins (all tied together on the breadboard):**
+
+| Wire # | Source | DB-25 Pin |
+|--------|--------|-----------|
+| 5 | GND | 9 |
+| 6 | GND | 8 |
+| 7 | GND | 7 |
+| 8 | GND | 6 |
+| GND | GND | 14 (bottom row) |
+
+> **Note:** Wires 5–8 are all soldered together on the breadboard and connected to ground. Wire GND connects to pin 14 on the bottom row of the DB-25; all other wires connect to the top row.
+
+> **Important:** After resoldering or reconnecting the connector, use the pin test (`test/pin_test.m`) to verify correct wiring.
 
 ### Uploading Arduino Firmware
 
@@ -412,10 +435,10 @@ Use the pin test to verify wiring after resoldering or reconnecting the Arduino-
 
 | LED Color | Arduino Pin | Expected Behavior |
 |-----------|-------------|-------------------|
-| Red | 8 | Lights when trigger bit 0 is active |
-| Yellow | 9 | Lights when trigger bit 1 is active |
-| Green | 10 | Lights when trigger bit 2 is active |
-| Blue | 11 | <!-- TODO: confirm function --> Blinks when experiment code runs (cause TBD) |
+| Blue | 8 | Lights when trigger bit 0 is active |
+| Green | 9 | Lights when trigger bit 1 is active |
+| Yellow | 10 | Lights when trigger bit 2 is active |
+| Red | 11 | <!-- TODO: confirm function --> Blinks when experiment code runs (cause TBD) |
 
 <!-- TODO: Document expected default LED state (all lit except blue when properly connected) -->
 
@@ -432,5 +455,5 @@ Use the pin test to verify wiring after resoldering or reconnecting the Arduino-
 - **Hardcoded serial port**: The COM port in `stimulation/Stimulation_EEG_experiment.m` (line 6) is set to `COM3`. Update this to match your system before running.
 - **No EEG software integration**: The MATLAB script does not start, stop, or communicate with SCAN 4.5. The researcher must manually start recording before running the script.
 - **Trigger pulse duration**: The trigger pins are set HIGH and then immediately reset to LOW in the same `loop()` iteration. Depending on loop execution time, the pulse width may be very short (~microseconds). Verify your EEG amplifier can reliably detect pulses of this duration.
-- **Pin 11 undocumented**: The blue LED on pin 11 is wired to the amplifier connector but the firmware does not drive it. Its function is unknown — it blinks when the experiment code runs, possibly due to electrical coupling on the breadboard.
+- **Pin 11 undocumented**: The red LED on pin 11 is wired to the amplifier connector (DB-25 pin 12) but the firmware does not drive it. Its function is unknown — it blinks when the experiment code runs, possibly due to electrical coupling on the breadboard.
 - **Relative timestamps**: The EEG PC may lack internet access, so SCAN 4.5 records relative time only. Use Arduino trigger markers (not wall-clock time) to align data.
