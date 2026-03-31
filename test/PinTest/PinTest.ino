@@ -3,7 +3,7 @@
 // sets that pin HIGH for 2 seconds, then sets it LOW.
 // Prints status to Serial Monitor so you can confirm which pin fired.
 
-int testPins[] = { 8, 9, 10, 12, 13 };
+int testPins[] = { 8, 9, 10, 11, 12, 13 };
 const int NUM_PINS = 5;
 
 void setup() {
