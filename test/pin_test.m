@@ -16,9 +16,10 @@ pause(2);  % wait for Arduino to reset after serial connection
 fprintf('Connected on %s\n', stimulator.Port);
 
 %% Define pins to test
-pins = [8, 9, 10, 12, 13];
-pin_labels = {'Trigger Bit 0', 'Trigger Bit 1', 'Trigger Bit 2', ...
-              'Stimulator Left', 'Stimulator Right'};
+pins = [8, 9, 10, 11, 12, 13];
+pin_labels = {'Trigger Bit 0 (Red LED)', 'Trigger Bit 1 (Yellow LED)', ...
+              'Trigger Bit 2 (Green LED)', 'Unknown (Blue LED)', ...
+              'Stimulator Left (no LED)', 'Stimulator Right (no LED)'};
 
 %% Test each pin
 for i = 1:length(pins)
