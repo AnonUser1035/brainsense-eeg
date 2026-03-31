@@ -9,7 +9,7 @@ clc; clear all;
 
 %% Connect to Arduino
 % stimulator = serialport('/dev/cu.usbmodem14101', 9600);  % macOS
-stimulator = serialport('COM3', 9600);
+stimulator = serialport('COM5', 9600);
 configureTerminator(stimulator, "LF");
 pause(2);  % wait for Arduino to reset after serial connection
 
