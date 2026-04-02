@@ -32,7 +32,7 @@ Experiment PC (MATLAB)
   | Serial (9600 baud, binary float packets)
   |
 Arduino Uno
-  |-- Pins 8, 9, 10, 11 ──► Breadboard LEDs ──► EEG amplifier trigger input port
+  |-- Pins 2, 3, 4 ────────► Breadboard LEDs ──► EEG amplifier trigger input port
   |-- Pins 12, 13 ──────────► Electrical stimulator(s) (left / right / both)
   |                                                        |
   |                                                   EEG amplifier
@@ -96,15 +96,11 @@ The Arduino trigger system serves as the synchronization mechanism between the E
 
 | Arduino Pin | Breadboard LED | Function |
 |-------------|---------------|----------|
-| 8 | Blue | EEG trigger bit 0 |
-| 9 | Green | EEG trigger bit 1 |
-| 10 | Yellow | EEG trigger bit 2 |
-| 11 | Red | <!-- TODO: confirm function — not driven by firmware but blinks when code runs --> |
+| 2 | Blue | EEG trigger bit 0 |
+| 3 | Green | EEG trigger bit 1 |
+| 4 | Yellow | EEG trigger bit 2 |
 | 12 | — | Left stimulator channel (not currently connected) |
 | 13 | — | Right stimulator channel (not currently connected) |
-
-<!-- TODO: Confirm pin 11 function — red LED blinks when code runs but firmware doesn't drive pin 11 -->
-<!-- TODO: Confirm whether pins 12/13 are needed for current experiment -->
 
 ### Breadboard to DB-25 Connector Wiring
 
@@ -114,10 +110,9 @@ The breadboard connects to the EEG amplifier via a DB-25 connector cable. The 8-
 
 | Wire # | Source | LED | DB-25 Pin |
 |--------|--------|-----|-----------|
-| 1 | Arduino pin 8 | Blue | 10 |
-| 2 | Arduino pin 9 | Green | 11 |
-| 3 | Arduino pin 10 | Yellow | 13 |
-| 4 | Arduino pin 11 | Red | 12 |
+| 1 | Arduino pin 2 | Blue | 10 |
+| 2 | Arduino pin 3 | Green | 11 |
+| 3 | Arduino pin 4 | Yellow | 13 |
 
 **Ground pins (all tied together on the breadboard):**
 
@@ -135,7 +130,7 @@ The breadboard connects to the EEG amplifier via a DB-25 connector cable. The 8-
 
 ### Uploading Arduino Firmware
 
-1. Open `arduino/StimArd_12_EEG_Trigger/StimArd_12_EEG_Trigger.ino` in the Arduino IDE.
+1. Open `arduino/ASSR_pipeline_V2/ASSR_pipeline_V2.ino` in the Arduino IDE.
 2. Select your board (Arduino Uno) and the correct COM port.
 3. Upload the sketch.
 
@@ -146,8 +141,8 @@ The breadboard connects to the EEG amplifier via a DB-25 connector cable. The 8-
 ```
 brainsense-eeg/
 ├── arduino/
-│   └── StimArd_12_EEG_Trigger/
-│       └── StimArd_12_EEG_Trigger.ino   # Arduino firmware for stimulation & EEG triggering
+│   └── ASSR_pipeline_V2/
+│       └── ASSR_pipeline_V2.ino         # Arduino firmware for stimulation & EEG triggering
 ├── stimulation/
 │   ├── Stimulation_EEG_experiment.m     # Main electrical/thermal stimulation experiment
 │   ├── playStereoTones.m               # Basic stereo tone generation utility
@@ -168,13 +163,13 @@ brainsense-eeg/
 
 #### Arduino
 
-##### `StimArd_12_EEG_Trigger.ino`
-Arduino firmware. Listens for 24-byte serial packets from MATLAB, decodes stimulation parameters, pulses EEG trigger pins, and drives the stimulator with precise square-wave pulses using a busy-wait timing loop (`busyDelayMicroseconds`) for microsecond-level accuracy.
+##### `ASSR_pipeline_V2.ino`
+Arduino firmware for ASSR EEG triggering. Listens for 24-byte serial packets from MATLAB, decodes stimulation parameters, pulses EEG trigger pins (2, 3, 4), and drives the stimulator with precise square-wave pulses using a busy-wait timing loop (`busyDelayMicroseconds`) for microsecond-level accuracy. Includes a 1-second delay after resetting trigger pins and a 5-second hold on trigger case 1.
 
 #### Stimulation
 
 ##### `Stimulation_EEG_experiment.m`
-Main MATLAB experiment controller for electrical/thermal stimulation. Establishes serial connection to Arduino, randomizes trial order, loops through 120 trials sending stimulation commands, collects subject ratings after each trial, and saves results to a `.mat` file.
+Main MATLAB experiment controller for electrical/thermal stimulation. Establishes serial connection to Arduino (with a 2-second pause for Arduino reboot), randomizes trial order across 6 conditions (2 PW × 3 freq = 120 trials), sends stimulation commands, collects subject ratings after each trial, and saves results to a `.mat` file.
 
 ##### `playStereoTones_ASSR.m`
 Generates and plays stereo auditory steady-state response (ASSR) stimuli. Produces amplitude-modulated tones where each ear receives a carrier tone modulated at different frequencies — the left ear at the ASSR frequency (default 40 Hz) and the right ear at an offset frequency (default ASSR + 5 Hz). This enables frequency-tagging analysis in the recorded EEG to identify neural responses locked to each ear's modulation rate.
@@ -275,8 +270,8 @@ Run with:
 1. **Start Neuroscan SCAN 4.5** on the EEG PC and begin recording before proceeding.
 2. Open MATLAB on the Experiment PC and set the correct serial port in `stimulation/Stimulation_EEG_experiment.m`:
    ```matlab
-   stimulator = serialport('COM3', 9600);   % Windows
-   % stimulator = serialport('/dev/cu.usbmodem14101', 9600);  % macOS
+   stimulator = serialport("/dev/cu.usbmodem1301", 9600);  % macOS
+   % stimulator = serialport('COM3', 9600);   % Windows
    ```
 3. Set the save path if needed:
    ```matlab
@@ -343,7 +338,7 @@ The saved `Result` struct contains:
 
 ## EEG Trigger System
 
-The three Arduino pins (8, 9, 10) form a 3-bit binary trigger code that is sent to the EEG amplifier's digital input port at the start of each stimulation. Neuroscan SCAN 4.5 reads this as an integer event marker and stamps it into the recording.
+The three Arduino pins (2, 3, 4) form a 3-bit binary trigger code that is sent to the EEG amplifier's digital input port at the start of each stimulation. Neuroscan SCAN 4.5 reads this as an integer event marker and stamps it into the recording.
 
 ### Trigger Code Mapping
 
@@ -351,12 +346,12 @@ Each of the 6 parameter conditions (2 pulse widths × 3 frequencies) is assigned
 
 | Trigger Code | Pins HIGH | Typical Use |
 |:---:|:---:|---|
-| 1 | 8 | Condition 1 |
-| 2 | 9 | Condition 2 |
-| 3 | 10 | Condition 3 |
-| 4 | 8, 9 | Condition 4 |
-| 5 | 8, 10 | Condition 5 |
-| 6 | 9, 10 | Condition 6 |
+| 1 | 2 | Condition 1 |
+| 2 | 3 | Condition 2 |
+| 3 | 4 | Condition 3 |
+| 4 | 2, 3 | Condition 4 |
+| 5 | 2, 4 | Condition 5 |
+| 6 | 3, 4 | Condition 6 |
 
 These markers appear in SCAN 4.5 as timestamped event markers in the continuous EEG trace. During offline analysis, they are used to epoch the EEG data (e.g. extract −200 ms to +1000 ms windows around each trigger) and to link trials back to the behavioral ratings saved in the `.mat` file.
 
@@ -429,18 +424,15 @@ Use the pin test to verify wiring after resoldering or reconnecting the Arduino-
 4. For each pin, note:
    - Which LED lights up on the breadboard
    - Whether a trigger event appears in SCAN 4.5
-5. **Re-upload the main firmware** (`arduino/StimArd_12_EEG_Trigger/StimArd_12_EEG_Trigger.ino`) when done testing.
+5. **Re-upload the main firmware** (`arduino/ASSR_pipeline_V2/ASSR_pipeline_V2.ino`) when done testing.
 
 ### LED Indicator Reference
 
 | LED Color | Arduino Pin | Expected Behavior |
 |-----------|-------------|-------------------|
-| Blue | 8 | Lights when trigger bit 0 is active |
-| Green | 9 | Lights when trigger bit 1 is active |
-| Yellow | 10 | Lights when trigger bit 2 is active |
-| Red | 11 | <!-- TODO: confirm function --> Blinks when experiment code runs (cause TBD) |
-
-<!-- TODO: Document expected default LED state (all lit except blue when properly connected) -->
+| Blue | 2 | Lights when trigger bit 0 is active |
+| Green | 3 | Lights when trigger bit 1 is active |
+| Yellow | 4 | Lights when trigger bit 2 is active |
 
 ### Troubleshooting
 
@@ -452,8 +444,7 @@ Use the pin test to verify wiring after resoldering or reconnecting the Arduino-
 
 ## Known Issues
 
-- **Hardcoded serial port**: The COM port in `stimulation/Stimulation_EEG_experiment.m` (line 6) is set to `COM3`. Update this to match your system before running.
+- **Hardcoded serial port**: The serial port in `stimulation/Stimulation_EEG_experiment.m` is set to `/dev/cu.usbmodem1301` (macOS). Update this to match your system before running (e.g., `'COM3'` on Windows).
 - **No EEG software integration**: The MATLAB script does not start, stop, or communicate with SCAN 4.5. The researcher must manually start recording before running the script.
-- **Trigger pulse duration**: The trigger pins are set HIGH and then immediately reset to LOW in the same `loop()` iteration. Depending on loop execution time, the pulse width may be very short (~microseconds). Verify your EEG amplifier can reliably detect pulses of this duration.
-- **Pin 11 undocumented**: The red LED on pin 11 is wired to the amplifier connector (DB-25 pin 12) but the firmware does not drive it. Its function is unknown — it blinks when the experiment code runs, possibly due to electrical coupling on the breadboard.
+- **Trigger pulse timing**: The firmware includes a 1-second delay after resetting trigger pins LOW and a 5-second hold for trigger case 1. These delays affect experiment timing — account for them in your protocol design.
 - **Relative timestamps**: The EEG PC may lack internet access, so SCAN 4.5 records relative time only. Use Arduino trigger markers (not wall-clock time) to align data.
