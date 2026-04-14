@@ -1,0 +1,135 @@
+%% On-ear-OS sleep-loop
+clc
+clear all
+close all
+
+% select path where recording is being created
+repoRoot   = "/Users/alessandroascaniorsini/Documents/GitHub/Github_DataView-v3";
+dataFolder = fullfile(repoRoot, "data-raw");
+streamFolder = fullfile(repoRoot, "stream");  % contains PacketManager.py
+% filter
+bOrder = 1;
+lowCutoff = .5; % frequency above which take the filter
+highCutoff = 400; % frequency below which take the filter
+bOrder = 1; % order of the butter filter
+winLen = 10; % window length in seconds
+winRefresh = 1;
+debugOn = false;
+bands = struct( ...
+    'delta', [0.5 4], ...
+    'theta', [4 8], ...
+    'alpha', [8 13], ...
+    'beta',  [13 30], ...
+    'gamma', [30 45] );
+bandNames = fieldnames(bands);
+
+% Find newest .bin file in data-raw
+files = dir(fullfile(dataFolder, "*.bin"));
+assert(~isempty(files), "No .bin files found in data-raw. Press Record in DataView first.");
+for i = 1:length(files)
+    dt(i) = datetime(files(i).date, 'InputFormat','dd-MMM-yyyy HH:mm:ss','Locale','en_US');
+end
+[~, idx] = max(dt);
+blockPath = fullfile(files(idx).folder, files(idx).name);
+fprintf("Tailing: %s\n", blockPath);
+
+%% Extract file information (NeuroPulse)
+[~, fname, ~] = fileparts(blockPath); % get the filename in format '2025.05.17.09.35.05_AAO-18'
+parts = split(fname,'_'); % split at '_'
+ts_str = parts{1}; % '2025.05.17.09.35.05'
+startTime = datetime(ts_str, 'InputFormat','yyyy.MM.dd.HH.mm.ss');
+
+b2V = @(rawChaB) (rawChaB-2^11)*1.8./(2^12*1000); % function to Adjust using -60 dB and 12 bits for 1.8V converts bits to V.
+HR_k = [];
+R_ABk = [];
+R_ADk = [];
+Ai = [0];
+t = [];
+
+while true
+    earData = fn_BionodeBinOpen(blockPath,12);
+    fsBionode = earData.channelSampleRate; % Sampling rate
+    % timeAxis = startTime + seconds(earData.time);
+    timeAxis = earData.time;
+    winTime = max([1,(length(earData.time)-winLen*fsBionode)]):length(earData.time)-10;
+    rawChaB = earData.channelsData(:,:);
+    % filter
+    [bB, aB] = butter(bOrder, [lowCutoff highCutoff] / (fsBionode / 2), 'bandpass');
+    PPfiltChaB = earData.channelsData;
+    segN = min(length(winTime), 2*fsBionode);   % ~2 s segments (tune)
+    winW = hann(segN);
+    nover = floor(segN/2);
+    % plot
+    for i=1:earData.numChannels
+        PPfiltChaB(i,:) = filtfilt(bB, aB, b2V(earData.channelsData(i, :)));
+        %PPfiltChaB(i,:) = b2V(rawChaB(i,:));
+        if debugOn
+            sgtitle(sprintf("Channel %d", i))
+            subplot(earData.numChannels,1,i)
+            plot(timeAxis(winTime),PPfiltChaB(i,winTime))
+            xlabel("s")
+            ylabel("V")
+            xlim([min(timeAxis(winTime)),max(timeAxis(winTime))])
+        end
+    %% Compute Power
+        [Pxx{i},f] = pwelch(PPfiltChaB(i,winTime), winW, nover, segN, fsBionode);
+        if debugOn
+            sgtitle(sprintf("Channel %d", i))
+            subplot(earData.numChannels,1,i)
+            plot(f,10.*log10(Pxx{i}))
+            xlabel("s")
+            ylabel("V2")
+        end
+        % band power
+        for k = 1:numel(bandNames)
+            fr = bands.(bandNames{k});
+            m = (f >= fr(1)) & (f < fr(2));
+            if any(m)
+                bp(i,k) = trapz(f(m), Pxx{i}(m));
+            end
+        end
+    %% Compute HR
+    [pks,locs] = findpeaks(PPfiltChaB(i,winTime), ...
+    'MinPeakDistance', 0.6*fsBionode, ...
+    'MaxPeakWidth', 0.04*fsBionode,...
+    'MinPeakProminence', 0.5,...
+    'MinPeakHeight', 1e-4);
+    if ~isempty(pks)
+        HR(i) = 60*length(pks)/winLen;
+    end
+
+    %%Determine arousal level
+    R_AB(i) = log10(bp(i,4)./bp(i,3));% ratio alpha beta
+    R_AD(i) = log10(bp(i,1)./bp(i,3));% ratio delta alpha
+    
+    end
+
+    %% Compute Arousal index
+    if ~isempty(HR_k)
+        HR_k(end+1) = min(HR(HR>40&HR<120));
+        R_ABk(end+1) = min(R_AB);
+        if length(HR_k)>6
+            Ai(end+1) = 0.5*(HR_k(end)-mean(HR_k))./std(HR_k)+0.5*(R_ABk(end)-mean(R_ABk))./std(R_ABk);
+        end
+        t(end+1) = earData.time(end);
+    end
+
+    %% Auditory stim
+    fprintf('%f\n', Ai(end));
+    if Ai(end)>0
+        playStereoTones_sleep( ...
+            1000, ...   % carrier
+            40,  ...   % ASSR freq (fixed)
+            min(max(8 + 6*Ai(end), 4), 20),   ...   % binaural beat offset
+            winRefresh,     ...   % duration
+            48000,      ...   % sample rate
+            min(max(0.3 + 0.35*Ai(end), 0.2), 1.0),       ...   % modulation depth
+            5,...   % ramp
+            min(max(-12 + 3*Ai(end),  -14),  -6),     ...   % level dBFS
+            true);        % play
+    else
+    
+    end
+    % wait
+    pause(winRefresh);
+end
