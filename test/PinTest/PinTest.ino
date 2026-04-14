@@ -4,7 +4,7 @@
 // Prints status to Serial Monitor so you can confirm which pin fired.
 
 int testPins[] = { 8, 9, 10, 11, 12, 13 };
-const int NUM_PINS = 5;
+const int NUM_PINS = 6;
 
 void setup() {
     Serial.begin(9600);
@@ -12,7 +12,7 @@ void setup() {
         pinMode(testPins[i], OUTPUT);
         digitalWrite(testPins[i], LOW);
     }
-    Serial.println("PinTest ready. Send a pin number (8, 9, 10, 12, or 13) to test.");
+    Serial.println("PinTest ready. Send a pin number (8, 9, 10, 11, 12, or 13) to test.");
 }
 
 void loop() {
